@@ -19,7 +19,7 @@ const Navbar = ({ connected }) => {
   <button>About</button>
   <button>Contact</button>
  </nav>
-                {!connected && <button className="order-online">connectWallet</button>}
+                {!connected && <button className="order-online">wallet not connected</button>}
                 {connected && <button className="order-online-two">wallet connected</button>}
 </header>
 <div>
