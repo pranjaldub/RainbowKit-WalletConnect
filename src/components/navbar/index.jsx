@@ -4,7 +4,7 @@ import { useState } from 'react'
 import "./navbar.css"
 
 const Navbar = ({ connected }) => {
-    console.log(connected)
+    //console.log(connected)
     const [isconnected, setIsConnected] = useState(connected)
     useEffect(()=>{setIsConnected(connected)},[connected])
     return (

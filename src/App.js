@@ -1,96 +1,80 @@
-import logo from './logo.svg';
-import './App.css';
-import '@rainbow-me/rainbowkit/styles.css';
-import {
-  getDefaultWallets,
-  RainbowKitProvider,
-  darkTheme,
-  lightTheme, midnightTheme
-} from '@rainbow-me/rainbowkit';
-import {
-  chain,
-  configureChains,
-  createClient,
-  WagmiConfig,
-} from 'wagmi';
-import { alchemyProvider } from 'wagmi/providers/alchemy';
-import { publicProvider } from 'wagmi/providers/public';
-import React, { useState, useEffect } from 'react'
-import ConnectWallet from './components/connect-wallet';
-import { RainbowKitSiweNextAuthProvider } from '@rainbow-me/rainbowkit-siwe-next-auth';
-import { SessionProvider } from 'next-auth/react';
-import AddRecentTransaction from './components/add-recent-transaction';
-import { ModalHooks } from './components/modal-hooks';
-import ChangeTheme from './components/change-theme';
-import Navbar from './components/navbar';
+import Web3 from 'web3';
 
-
-const { chains, provider } = configureChains(
-  [chain.mainnet, chain.goerli],
-  [
-    alchemyProvider({ apiKey: process.env.REACT_APP_ALCHEMY_ID }),
-
-    publicProvider()
-  ]
-);
-const { connectors } = getDefaultWallets({
-  appName: 'My RainbowKit App',
-  chains
-});
-const wagmiClient = createClient({
-  autoConnect: true,
-  connectors,
-  provider
-})
-
+import { useState, useEffect } from 'react';
+import Modal from "./components/components-used-in-web3modal/modal/modal"
+import DisplayDetails from './components/components-used-in-web3modal/display-details/displayDetails';
 
 function App() {
+    const [account, setAccount] = useState("")
+    const [polygon, setPolygon] = useState({ chainName: "", chainId: 0, rpcUrl: "" })
+    const runtime = "test"
 
-  const [theme, setTheme] = useState("lightTheme")
-  const changeThemeHandler = (theme) => {
-    setTheme(theme)
+    useEffect(() => {
 
-  }
-  const [connected, setConnected] = useState(false)
-  const [call, setCall] = useState(false)
-  const checkConnection = () => {
 
-    const data = JSON.parse(JSON.parse(localStorage.getItem('wagmi.store')))
-    console.log("running", Object.keys(data.state.data).length)
-    if (Object.keys(data.state.data).length > 0) {
-      if (data?.state?.data?.account) {
-        setCall(prevState => !prevState)
-        setConnected(true)
-      }
+        console.log(runtime, runtime === "PRODUCTION");
+        if (runtime === "PRODUCTION") {
+            setPolygon({ chainName: "Polygon Mainnet", chainId: 137, rpcUrl: 'https://polygon-rpc.com/' })
+        }
+        else {
+            setPolygon({ chainName: "Polygon Testnet", chainId: 80001, rpcUrl: 'https://rpc-mumbai.maticvigil.com/' })
+        }
+
+
+    }, [])
+
+    async function connectWallet(wallet) {
+        const web3 = new Web3()
+        if (wallet === "kaikas") {
+            const kaikas = window.klaytn
+            const accounts = await kaikas.enable()
+            setAccount(accounts[0])
+        }
+        else if (wallet === "polygon") {
+            const web3 = new Web3()
+            if (window.ethereum.networkVersion !== polygon.chainId) {
+                try {
+
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: web3.utils.toHex(polygon.chainId) }]
+                    });
+                    window.ethereum.enable()
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    setAccount(accounts[0])
+                } catch (err) {
+                    // If chain is not added , then add polygon network
+                    if (err.code === 4902) {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [
+                                {
+                                    chainName: polygon.chainName,
+                                    chainId: web3.utils.toHex(polygon.chainId),
+                                    nativeCurrency: { name: 'MATIC', decimals: 18, symbol: 'MATIC' },
+                                    rpcUrls: [polygon.rpcUrl]
+
+                                }
+                            ]
+                        });
+                    }
+                }
+            }
+
+        }
+
     }
-    else {
-      console.log("inside else")
-      setCall(prevState => !prevState)
-      setConnected(false)
-    }
-  }
 
-  useEffect(() => {
-    setConnected(connected)
-  }, [call])
 
-  return (
-    <div className="App">
-      <Navbar connected={connected}></Navbar>
-      <WagmiConfig client={wagmiClient}>
 
-        <RainbowKitProvider chains={chains} modalSize="compact" initialChain={chain.goerli} theme={theme === "lightTheme" ? lightTheme() : theme === "darkTheme" ? darkTheme() : theme === "midnightTheme" ? midnightTheme() : lightTheme()} showRecentTransactions={true} appInfo={{
-          appName: 'Rainbowkit Application'
-        }} coolMode>
-          <ConnectWallet checkConnection={checkConnection}></ConnectWallet>
-          {/* <AddRecentTransaction></AddRecentTransaction> */}
-          <ModalHooks></ModalHooks>
-          <ChangeTheme changeThemeHandler={changeThemeHandler}></ChangeTheme>
-        </RainbowKitProvider>
 
-      </WagmiConfig>
-    </div>
-  );
+    return (
+        <div>
+            {!account && <Modal connectWalletButton={connectWallet}></Modal>}
+            {account && <DisplayDetails setAccount={setAccount} account={account}></DisplayDetails>}
+
+        </div>
+    )
 }
 
 export default App;
